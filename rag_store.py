@@ -4,6 +4,7 @@ import os
 from typing import Dict, List, Optional,Any
 import uuid
 from contracts import Hit
+import shutil
 
 _client = None
 _collection = None
@@ -12,10 +13,11 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 _persist_path = os.path.join(base_dir, "RAG_Memeory")
 
 _embed_function = embedding_functions.DefaultEmbeddingFunction()
-
+_active_persist_path = None
 def init(persist_path : Optional[str] = None , collection_name:Optional[str] = None):
-    global _client, _collection
+    global _client, _collection, _active_persist_path
     p_path = persist_path or _persist_path
+    _active_persist_path = p_path
     c_name = collection_name or "rag_memory"
     if _client is not None:
         return
@@ -28,6 +30,16 @@ def init(persist_path : Optional[str] = None , collection_name:Optional[str] = N
         name = c_name,
         metadata = {"hnsw:space": "cosine"}
     )
+
+def restore_store():
+    global _client,_collection,_active_persist_path
+
+    _client = None
+    _collection = None
+
+    if _active_persist_path and os.path.exists(_active_persist_path):
+        shutil.rmtree(_active_persist_path) 
+
 
 def count_embeddings():
     init()
