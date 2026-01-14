@@ -32,7 +32,6 @@ def extract_text(folder: str = "MedDoc")-> List[DocumentText]:
             continue    
 
         text = text.strip()
-
         if not text:
             continue
 

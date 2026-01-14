@@ -88,8 +88,8 @@ def call_llm_with_validation(prompt: str, call_llm, max_retries: int = 2) -> LLM
     raise ValueError("Failed to get valid JSON after retries")
   
 
-def answer_question(question: str) -> str:
-    rag_similarities = rag_search(question)
+def answer_question(question: str, k:int = 3) -> LLMAnswer:
+    rag_similarities = rag_search(question , k)
     block = make_blocks(rag_similarities)
     prompt = make_prompt(question, block)
     #answer = call_llm(prompt)
