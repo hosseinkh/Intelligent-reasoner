@@ -30,10 +30,10 @@ def text_to_sentence(docText : DocumentText) -> Dict[str, List[str]]:
 def chunk_sentences(metaSentences: Dict[str,List[str]] , file_name: str, chunk_size: int = 500 , overlapping_sentence: int = 1) -> List[Dict[str,str]]:
     chunks =[]
     
-    #for file_name , sentences in metaSentences.items():
+    for file_name , sentences in metaSentences.items():
     current_chunk = []
     current_length = 0
-    Sentences = next(iter(metaSentences.values()))
+    #Sentences = next(iter(metaSentences.values()))
     for sentence in Sentences:
         sentence_length = len(sentence)
         if current_chunk and (current_length + sentence_length) > chunk_size:

@@ -1,7 +1,9 @@
+#from api.logging_config import logger
 from contracts import TraceCall,ToolName, ToolCall, ToolChoice, Hit
-from typing import List, Optional
+from typing import List, Optional,Tuple
 import uuid
 import time
+from api.config import RAG_TOP_K, RAG_ENABLED
 
 RAG_KEYWORDS = [
     "selon",
@@ -14,12 +16,22 @@ RAG_KEYWORDS = [
     "rapport"
 ]
 
-def agent_run(query:str) -> TraceCall:
+def agent_run(query:str , logger = None) -> TraceCall:
+    total_start = time.time()
+    logger.info("agent_run started...")
     run_id = str(uuid.uuid4())
     tool_calls =[]
-    tool_name  = router(query)
+    tool_name, router_trigger  = router(query, logger)
     if tool_name == 'llm_answer':
+        hits = None
         start = time.time()
+        sources = None
+        avg_score = None
+
+        retrieval_stats = {
+            "k" : 0,
+            "avg_score": avg_score,
+        }
         answer = llm_answer(query)
         end = time.time()
         status = 'success'
@@ -36,6 +48,14 @@ def agent_run(query:str) -> TraceCall:
     elif tool_name == 'rag_search':
         start = time.time()
         hits = rag_search(query)
+        sources = list({hit.metadata['file_name'] for hit in hits})
+        scores = [hit.score for hit in hits]
+        avg_score = sum(scores) / len(scores) if hits else None
+
+        retrieval_stats = {
+            "k" : len(hits),
+            "avg_score": avg_score,
+        }
         end = time.time()
         ms1 = int((end - start) * 1000)
         start = time.time()
@@ -67,21 +87,38 @@ def agent_run(query:str) -> TraceCall:
         answer = "No tool matched"
     
     final_answer = answer
+    total_end = time.time()
+    total_ms = int(total_end-total_start) * 1000
+    
     return TraceCall(
         run_id = run_id,
         query = query,
+        router_policy = tool_name,
+        router_trigger = router_trigger,
+        rag_enabled = RAG_ENABLED,
         tool_calls = tool_calls,
         status = status,
         final_answer = final_answer,
+        sources = sources, 
+        retrieval_stats = retrieval_stats,
+        total_ms = total_ms
         )
 
-def router(query:str) -> ToolChoice:
-    q_lower = query.lower()
-    if any( w in q_lower for w in RAG_KEYWORDS):
-        return "rag_search"
+"""
+def router(query:str, logger = None) -> ToolChoice:
+    if RAG_ENABLED:
+        q_lower = query.lower()
+        if any( w in q_lower for w in RAG_KEYWORDS):
+            logger.info("the router policy is rag_search")
+            return "rag_search"
+        else:
+            logger.info("the router policy is llm_search")
+            return "llm_answer"
     else:
+        logger.info("!!! Rag is not enabled by the user !!!")
         return "llm_answer"
-    """
+
+    ####
     if query == 'help':
         return 'llm_answer'
     elif query == 'rag_help':
@@ -89,6 +126,24 @@ def router(query:str) -> ToolChoice:
     else:
         return None
     """
+def router(query:str, logger = None)-> Tuple[str, Optional[str]]:
+    if not RAG_ENABLED:
+        if logger:
+            logger.info("router: rag disabled -> llm answer")
+        return "logger_llm", None    
+
+    q_lower = query.lower()
+    trigger = next((w for w in RAG_KEYWORDS if w in q_lower), None)
+
+    if trigger is not None:
+        if logger:
+            logger.info(f"router: rag_searcg(trigger={trigger})")
+        return "rag_search", trigger
+
+    if logger:
+        logger.info("router: llm_answer (no keyword match)")
+    return "llm_answer" , None            
+
 def llm_answer(query:str, hits: Optional[List[Hit]] = None) -> str:
     from reasoning import call_llm_with_validation, make_blocks,make_prompt
     from reasoning import call_llm as v1_call_llm
@@ -116,7 +171,7 @@ def llm_answer(query:str, hits: Optional[List[Hit]] = None) -> str:
 def rag_search(query:str)->List[Hit]:
     from reasoning import rag_search as v1_rag_search
 
-    hits = v1_rag_search(query , k = 3)
+    hits = v1_rag_search(query , k = RAG_TOP_K)
     return hits
     """
     return [

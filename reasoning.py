@@ -4,6 +4,10 @@ from rag_store import similar
 from contracts import Hit,LLMAnswer
 import ollama
 import json
+from api.config import MODEL,MAX_TRIES,LLM_TIMEOUT_S
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
+import httpx
+from pydantic import ValidationError
 
 
 
@@ -39,23 +43,34 @@ Do NOT add any explanation, text, or formatting outside the JSON.
 """
 
 def call_llm(prompt: str):
-    response = ollama.chat(
-        model = "qwen2.5:1.5b-instruct",
-        messages = [
-            {
-              "role": "system",
-              "content": (
-                "You are an expert in drug shortages. "
-                "You must answer only using the provided CONTEXT and say 'Unknown' if unsure."
-            )
-            },
-            {
-              "role": "user", "content": prompt
-            }
-        ]
-    )
+    def _call():
+        response = ollama.chat(
+            #model = "qwen2.5:1.5b-instruct",
+            model = MODEL,
+            messages = [
+                {
+                "role": "system",
+                "content": (
+                    "You are an expert in drug shortages. "
+                    "You must answer only using the provided CONTEXT and say 'Unknown' if unsure."
+                )
+                },
+                {
+                "role": "user", "content": prompt
+                }
+            ],
+        # timeout = LLM_TIMEOUT_S,
+        )
+        return response["message"]["content"]
+
+    with ThreadPoolExecutor(max_workers = 1) as executor:
+        future = executor.submit(_call)
+        try:
+            return future.result(timeout=LLM_TIMEOUT_S)
+        except FuturesTimeout:
+            raise TimeoutError(f"LLM call exceeded {LLM_TIMEOUT_S}s")    
     
-    return response["message"]["content"]
+    
 
 def call_llm_with_validation(prompt: str, call_llm, max_retries: int = 2) -> LLMAnswer:
     raw = call_llm(prompt)
@@ -64,7 +79,8 @@ def call_llm_with_validation(prompt: str, call_llm, max_retries: int = 2) -> LLM
         try:
             data = json.loads(raw)
             return LLMAnswer.model_validate(data)
-
+        except TimeoutError:
+            raise 
         except json.JSONDecodeError:
             repair = (
                 "Your output was not valid JSON. "
@@ -93,7 +109,7 @@ def answer_question(question: str, k:int = 3) -> LLMAnswer:
     block = make_blocks(rag_similarities)
     prompt = make_prompt(question, block)
     #answer = call_llm(prompt)
-    answer = call_llm_with_validation(prompt, call_llm)
+    answer = call_llm_with_validation(prompt, call_llm, max_retries = MAX_TRIES)
     print(answer)
     return answer
 
