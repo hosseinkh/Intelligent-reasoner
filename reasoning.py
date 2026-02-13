@@ -83,7 +83,7 @@ def call_llm(prompt: str) -> str:
         location="europe-west4"
     )
 
-    model = GenerativeModel("gemini-1.5-flash")
+    model = GenerativeModel("gemini-1.5-flash-001")
     response = model.generate_content(prompt)
 
     return response.text    
