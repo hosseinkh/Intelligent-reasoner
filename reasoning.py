@@ -80,7 +80,7 @@ def call_llm(prompt: str) -> str:
     print("GOOGLE_CLOUD_PROJECT", os.environ.get("GOOGLE_CLOUD_PROJECT"))
     vertexai.init(
         project= project,
-        location="europe-west9"
+        location="europe-west4"
     )
 
     model = GenerativeModel("gemini-1.5-flash")
