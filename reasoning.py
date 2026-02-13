@@ -42,39 +42,48 @@ You MUST answer ONLY with a valid JSON object, with this exact structure:
   "source" : "<the relevant file name indicated in the content>"
 }}
 
-Do NOT add any explanation, text, or formatting outside the JSON.
+Do NOT add any explanation, text, or formatting outside the JSON."""
 
-"""
-"""
-def call_llm(prompt: str):
-    def _call():
-        response = ollama.chat(
-            #model = "qwen2.5:1.5b-instruct",
-            model = MODEL,
-            messages = [
-                {
-                "role": "system",
-                "content": (
-                    "You are an expert in drug shortages. "
-                    "You must answer only using the provided CONTEXT and say 'Unknown' if unsure."
-                )
-                },
-                {
-                "role": "user", "content": prompt
-                }
-            ],
-        # timeout = LLM_TIMEOUT_S,
-        )
-        return response["message"]["content"]
 
-    with ThreadPoolExecutor(max_workers = 1) as executor:
-        future = executor.submit(_call)
-        try:
-            return future.result(timeout=LLM_TIMEOUT_S)
-        except FuturesTimeout:
-            raise TimeoutError(f"LLM call exceeded {LLM_TIMEOUT_S}s")    
+
+# def call_llm(prompt: str):
+#     def _call():
+#         response = ollama.chat(
+#             #model = "qwen2.5:1.5b-instruct",
+#             model = MODEL,
+#             messages = [
+#                 {
+#                 "role": "system",
+#                 "content": (
+#                     "You are an expert in drug shortages. "
+#                     "You must answer only using the provided CONTEXT and say 'Unknown' if unsure."
+#                 )
+#                 },
+#                 {
+#                 "role": "user", "content": prompt
+#                 }
+#             ],
+#         # timeout = LLM_TIMEOUT_S,
+#         )
+#         return response["message"]["content"]
+
+#     with ThreadPoolExecutor(max_workers = 1) as executor:
+#         future = executor.submit(_call)
+#         try:
+#             return future.result(timeout=LLM_TIMEOUT_S)
+#         except FuturesTimeout:
+#             raise TimeoutError(f"LLM call exceeded {LLM_TIMEOUT_S}s")    
     
-    
+def call_llm(prompt: str) -> str:
+    vertexai.init(
+        project="medshortage-agent-v2",
+        location="europe-west9"
+    )
+
+    model = GenerativeModel("gemini-1.5-flash")
+    response = model.generate_content(prompt)
+
+    return response.text    
 
 def call_llm_with_validation(prompt: str, call_llm, max_retries: int = 2) -> LLMAnswer:
     raw = call_llm(prompt)
