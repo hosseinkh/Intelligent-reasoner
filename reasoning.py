@@ -1,4 +1,5 @@
 
+import os
 from typing import Dict, List, Optional,Any
 from rag_store import similar
 from contracts import Hit,LLMAnswer
@@ -75,8 +76,10 @@ Do NOT add any explanation, text, or formatting outside the JSON."""
 #             raise TimeoutError(f"LLM call exceeded {LLM_TIMEOUT_S}s")    
     
 def call_llm(prompt: str) -> str:
+    project = os.environ.get("GOOGLE_CLOUD_PROJECT")
+    print("GOOGLE_CLOUD_PROJECT", os.environ.get("GOOGLE_CLOUD_PROJECT"))
     vertexai.init(
-        project="medshortage-agent-v2",
+        project= project,
         location="europe-west9"
     )
 
