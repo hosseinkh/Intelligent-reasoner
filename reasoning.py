@@ -2,7 +2,9 @@
 from typing import Dict, List, Optional,Any
 from rag_store import similar
 from contracts import Hit,LLMAnswer
-import ollama
+#import ollama
+import vertexai
+from vertexai.generative_models import GenerativeModel
 import json
 from api.config import MODEL,MAX_TRIES,LLM_TIMEOUT_S
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
@@ -41,7 +43,7 @@ You MUST answer ONLY with a valid JSON object, with this exact structure:
 Do NOT add any explanation, text, or formatting outside the JSON.
 
 """
-
+"""
 def call_llm(prompt: str):
     def _call():
         response = ollama.chat(
@@ -70,7 +72,15 @@ def call_llm(prompt: str):
         except FuturesTimeout:
             raise TimeoutError(f"LLM call exceeded {LLM_TIMEOUT_S}s")    
     
-    
+"""
+def call_llm(prompt:str):
+    vertexai.init(
+        project = "medshortage-agent-v2",
+        location = "europe-west9"
+    )
+    model = GenerativeModel("gemini-1.5-flash")
+    response = model.generate_content(prompt)   
+    return response.text 
 
 def call_llm_with_validation(prompt: str, call_llm, max_retries: int = 2) -> LLMAnswer:
     raw = call_llm(prompt)
