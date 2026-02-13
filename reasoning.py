@@ -10,6 +10,8 @@ from api.config import MODEL,MAX_TRIES,LLM_TIMEOUT_S
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 import httpx
 from pydantic import ValidationError
+import grpc
+import logging
 
 
 
@@ -73,14 +75,22 @@ def call_llm(prompt: str):
             raise TimeoutError(f"LLM call exceeded {LLM_TIMEOUT_S}s")    
     
 """
+logger = logging.getLogger(__name__)
 def call_llm(prompt:str):
-    vertexai.init(
-        project = "medshortage-agent-v2",
-        location = "europe-west9"
-    )
-    model = GenerativeModel("gemini-1.5-flash")
-    response = model.generate_content(prompt)   
-    return response.text 
+    try:
+        vertexai.init(
+            project = "medshortage-agent-v2",
+            location = "europe-west4"
+        )
+        model = GenerativeModel("gemini-1.5-flash")
+        response = model.generate_content(prompt)   
+        return response.text 
+    except grpc.RpcError as e:
+        logger.exception("Vertex gPRC error: code=%s details=%s", e.code(),e.details())
+        raise
+    except Exception as e:
+        logger.exception("Unexpected error calling vertex %r", e)
+        raise
 
 def call_llm_with_validation(prompt: str, call_llm, max_retries: int = 2) -> LLMAnswer:
     raw = call_llm(prompt)
