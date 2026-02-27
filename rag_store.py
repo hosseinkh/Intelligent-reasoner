@@ -5,6 +5,7 @@ from typing import Dict, List, Optional,Any
 import uuid
 from contracts import Hit
 import shutil
+from api.config import RAG_TOP_K
 
 _client = None
 _collection = None
@@ -66,7 +67,7 @@ def upsert_text(text : str , metadata: Dict[str,Any], record_id: Optional[str] =
 
     return id
 
-def similar( text: str, k : int = 3, where: Optional[Dict[str,Any]]= None):
+def similar( text: str, k : int = RAG_TOP_K, where: Optional[Dict[str,Any]]= None):
     init()
     embed_query = embed(text)[0]
 

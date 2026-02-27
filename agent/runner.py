@@ -4,6 +4,7 @@ from typing import List, Optional,Tuple
 import uuid
 import time
 from api.config import RAG_TOP_K, RAG_ENABLED
+from api import metrics
 
 RAG_KEYWORDS = [
     "selon",
@@ -32,7 +33,7 @@ def agent_run(query:str , logger = None) -> TraceCall:
             "k" : 0,
             "avg_score": avg_score,
         }
-        answer = llm_answer(query)
+        answer = llm_answer(query = query, logger = logger)
         end = time.time()
         status = 'success'
         ms = int((end - start) * 1000)
@@ -47,7 +48,7 @@ def agent_run(query:str , logger = None) -> TraceCall:
 
     elif tool_name == 'rag_search':
         start = time.time()
-        hits = rag_search(query)
+        hits = rag_search(query = query, logger=logger)
         sources = list({hit.metadata['file_name'] for hit in hits})
         scores = [hit.score for hit in hits]
         avg_score = sum(scores) / len(scores) if hits else None
@@ -59,7 +60,7 @@ def agent_run(query:str , logger = None) -> TraceCall:
         end = time.time()
         ms1 = int((end - start) * 1000)
         start = time.time()
-        answer = llm_answer(query, hits)
+        answer = llm_answer(query = query, hits = hits,logger = logger)
         end = time.time()
         ms2 = int((end - start) * 1000)
         status = 'success'
@@ -104,28 +105,7 @@ def agent_run(query:str , logger = None) -> TraceCall:
         total_ms = total_ms
         )
 
-"""
-def router(query:str, logger = None) -> ToolChoice:
-    if RAG_ENABLED:
-        q_lower = query.lower()
-        if any( w in q_lower for w in RAG_KEYWORDS):
-            logger.info("the router policy is rag_search")
-            return "rag_search"
-        else:
-            logger.info("the router policy is llm_search")
-            return "llm_answer"
-    else:
-        logger.info("!!! Rag is not enabled by the user !!!")
-        return "llm_answer"
 
-    ####
-    if query == 'help':
-        return 'llm_answer'
-    elif query == 'rag_help':
-        return 'rag_search'    
-    else:
-        return None
-    """
 def router(query:str, logger = None)-> Tuple[str, Optional[str]]:
     if not RAG_ENABLED:
         if logger:
@@ -144,16 +124,24 @@ def router(query:str, logger = None)-> Tuple[str, Optional[str]]:
         logger.info("router: llm_answer (no keyword match)")
     return "llm_answer" , None            
 
-def llm_answer(query:str, hits: Optional[List[Hit]] = None) -> str:
+def llm_answer(query:str, hits: Optional[List[Hit]] = None, logger = None) -> str:
+    
+    logger.info(f"llm_answer: hits_type={type(hits)} and logger type = {type(logger)}")
     from reasoning import call_llm_with_validation, make_blocks,make_prompt
     from reasoning import call_llm as v1_call_llm
     if hits is None:
-        prompt = make_prompt(query, block="")
-        response = call_llm_with_validation(prompt,v1_call_llm)
+        start = time.perf_counter()
+        prompt = make_prompt(question=query, block = "", logger=logger)
+        duration_prompt_make = ((time.perf_counter()-start)*1000)
+        metrics.PROMPT_MAKING_LATENCY_S.observe(duration_prompt_make/1000)
+        response = call_llm_with_validation(prompt,v1_call_llm, logger = logger)
     else:
-        blocks = make_blocks(hits)
-        prompt = make_prompt(query,blocks)
-        response = call_llm_with_validation(prompt,v1_call_llm)
+        start = time.perf_counter()
+        blocks = make_blocks(hits = hits, logger = logger)
+        prompt = make_prompt(question=query,block = blocks, logger= logger)
+        duration_prompt_make = ((time.perf_counter()-start)*1000)
+        metrics.PROMPT_MAKING_LATENCY_S.observe(duration_prompt_make/1000)
+        response = call_llm_with_validation(prompt,v1_call_llm,logger = logger)
     
     return response.model_dump_json()
 
@@ -168,10 +156,10 @@ def llm_answer(query:str, hits: Optional[List[Hit]] = None) -> str:
     return output_summary
     """
 
-def rag_search(query:str)->List[Hit]:
+def rag_search(query:str , logger = None)->List[Hit]:
     from reasoning import rag_search as v1_rag_search
 
-    hits = v1_rag_search(query , k = RAG_TOP_K)
+    hits = v1_rag_search(question=query , k=RAG_TOP_K , logger=logger)
     return hits
     """
     return [
