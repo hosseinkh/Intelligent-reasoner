@@ -1,10 +1,12 @@
 #from api.logging_config import logger
-from contracts import TraceCall,ToolName, ToolCall, ToolChoice, Hit
+from contracts import TraceCall,ToolName, ToolCall, ToolChoice, Hit, RouterPolicy
 from typing import List, Optional,Tuple
 import uuid
 import time
 from api.config import RAG_TOP_K, RAG_ENABLED
 from api import metrics
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_ollama import ChatOllama
 
 RAG_KEYWORDS = [
     "selon",
@@ -16,6 +18,37 @@ RAG_KEYWORDS = [
     "preuve",
     "rapport"
 ]
+
+ROUTER_LLM_MODEL = "qwen2.5:1.5b-instruct"
+ROUTER_LLM_TEMP = 0.0
+ROUTER_CONF_THRESHOLD = 0.70
+
+def build_router_chain():
+    prompt = ChatPromptTemplate.from_messages([
+        ("system",
+         "You are a routing classifier for a RAG application.\n"
+         "Decide whether to answer directly (llm_answer) or retrieve documents first (rag_search).\n"
+         "\n"
+         "Use rag_search when the user asks for sources/references/proofs/citations or mentions ANSM/BDPM/documents.\n"
+         "Use llm_answer for general explanations, brainstorming, writing, or coding help.\n"
+         "\n"
+         "Return output strictly matching the RouterPolicy schema."),
+        ("human", "Query: {query}")
+    ])
+
+    llm = ChatOllama(model=ROUTER_LLM_MODEL, temperature=ROUTER_LLM_TEMP)
+    return prompt | llm.with_structured_output(RouterPolicy)
+
+ROUTER_CHAIN = build_router_chain()
+
+def llm_router_decide(query:str, logger = None) -> RouterPolicy:
+    decision : RouterPolicy = ROUTER_CHAIN.invoke({"query":query})
+    if logger:
+        logger.info(
+            f"llm_router_decide: tool={decision.tool} "
+            f"confidence={decision.confidence} trigger={decision.trigger}"
+        )
+    return decision
 
 def agent_run(query:str , logger = None) -> TraceCall:
     total_start = time.time()
@@ -89,7 +122,7 @@ def agent_run(query:str , logger = None) -> TraceCall:
     
     final_answer = answer
     total_end = time.time()
-    total_ms = int(total_end-total_start) * 1000
+    total_ms = int((total_end-total_start) * 1000)
     
     return TraceCall(
         run_id = run_id,
@@ -110,7 +143,7 @@ def router(query:str, logger = None)-> Tuple[str, Optional[str]]:
     if not RAG_ENABLED:
         if logger:
             logger.info("router: rag disabled -> llm answer")
-        return "logger_llm", None    
+        return "llm_answer", None    
 
     q_lower = query.lower()
     trigger = next((w for w in RAG_KEYWORDS if w in q_lower), None)
@@ -119,10 +152,23 @@ def router(query:str, logger = None)-> Tuple[str, Optional[str]]:
         if logger:
             logger.info(f"router: rag_searcg(trigger={trigger})")
         return "rag_search", trigger
-
-    if logger:
-        logger.info("router: llm_answer (no keyword match)")
-    return "llm_answer" , None            
+    
+    try:
+        decision = llm_router_decide(query= query, logger = logger)
+        if decision.confidence > ROUTER_CONF_THRESHOLD:
+            return decision.tool, decision.trigger
+        else:
+            if logger:
+                logger.info(
+                    f"router: low confidence ({decision.confidence} < {ROUTER_CONF_THRESHOLD}) "
+                    "-> fallback llm_answer"
+                )
+            return "llm_answer", None
+    except Exception as e:
+        
+        if logger:
+            logger.exception(f"router: LLM router failed -> fallback llm_answer: {e}")
+        return "llm_answer", None           
 
 def llm_answer(query:str, hits: Optional[List[Hit]] = None, logger = None) -> str:
     

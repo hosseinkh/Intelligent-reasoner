@@ -48,3 +48,12 @@ class TraceCall(BaseModel):
     sources: Optional[List[str]] = None
     retrieval_stats:Optional[Dict] = None
     total_ms : int
+
+
+#--------------------------------V3.1
+
+class RouterPolicy(BaseModel):
+    tool : Literal["rag_search","llm_answer"]
+    confidence : float = Field(ge = 0.0, le = 1.0)
+    reason : str
+    trigger :Optional[str] = None

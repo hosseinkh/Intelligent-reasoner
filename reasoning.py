@@ -158,6 +158,7 @@ def _call_ollama(prompt: str, logger = None):
                        
             return out
         except FuturesTimeout:
+            ms = int((time.perf_counter()-start)*1000)
             logger.exception("llm.call.error", extra = {
                 "llm_provider": "local",
                 "model": MODEL,
