@@ -196,7 +196,16 @@ def _call_vertex(prompt: str, logger=None) -> str:
         completion_tokens = usage.candidates_token_count
         total_tokens = usage.total_token_count
 
-        out = response.text
+        if not response.candidates:
+            raise ValueError("Vertex returned no candidates")
+        
+        candidate = response.candidates[0]
+        finish_reason = getattr(candidate, "finish_reason", None)
+            
+        try:
+            out = response.text
+        except Exception:
+            raise ValueError(f"Vertex returned no readable text. finish_reason={finish_reason}")
         ms = int((time.perf_counter() - start) * 1000)
 
         logger.info(
@@ -318,8 +327,13 @@ def call_llm_with_validation(prompt: str, call_llm, max_retries: int = 2, logger
     for attempt in range(max_retries + 1):
         try:
             raw = raw.strip()
-            if raw.startwith("```"):
-              raw = raw.split("```")[1]
+            if raw.startswith("```"):
+              parts = raw.split("`")
+              if len(parts)>=2:
+                raw = patrs[1].strip()
+                if raw.startswith("json"):
+                  raw = raw[4:].strip()
+              
             logger.info("llm.raw_output", extra={"raw":raw})
             data = json.loads(raw)
             obj = LLMAnswer.model_validate(data)
@@ -393,7 +407,7 @@ def answer_question(question: str, k:int = 3, logger = None) -> LLMAnswer:
     logger. info("reasoning started...")
     rag_similarities = rag_search(question , k,logger = logger)
     start = time.perf_counter()
-    block = make_blocks(rag_similarities)
+    block = make_blocks(rag_similarities, logger = logger)
     prompt = make_prompt(question, block,logger = logger)
     duration_prompt_making = ((time.perf_counter()-start)*1000)
     #answer = call_llm(prompt)
