@@ -112,7 +112,7 @@ def _call_ollama(prompt: str, logger = None):
                 }
             ],
             options = {
-                "num_predict": NUM_CHAR_OUT, "temprature":TEMPRATURE
+                "num_predict": NUM_CHAR_OUT, "temperature":TEMPRATURE
             },
         # timeout = LLM_TIMEOUT_S,
         )
@@ -158,13 +158,14 @@ def _call_ollama(prompt: str, logger = None):
                        
             return out
         except FuturesTimeout:
-            logger.exception("llm.call.error", extra = {
+            ms = int((time.perf_counter() - start) * 1000)
+            logger.exception("llm.call.error", extra={
                 "llm_provider": "local",
                 "model": MODEL,
                 "latency_ms": ms
             })
-            raise TimeoutError(f"LLM call exceeded {LLM_TIMEOUT_S}s")    
-    
+            raise TimeoutError(f"LLM call exceeded {LLM_TIMEOUT_S}s") 
+            
 def _call_vertex(prompt: str, logger=None) -> str:
     logger = logger or logging.getLogger("intelligent-reasoner")
     start = time.perf_counter()
@@ -382,13 +383,13 @@ def call_llm_with_validation(prompt: str, call_llm, max_retries: int = 2, logger
 def answer_question(question: str, k:int = 3, logger = None) -> LLMAnswer:
     logger = logger or logging.getLogger("intelligent-reasoner")
     logger. info("reasoning started...")
-    rag_similarities = rag_search(question , k)
+    rag_similarities = rag_search(question , k,logger = logger)
     start = time.perf_counter()
     block = make_blocks(rag_similarities)
-    prompt = make_prompt(question, block)
+    prompt = make_prompt(question, block,logger = logger)
     duration_prompt_making = ((time.perf_counter()-start)*1000)
     #answer = call_llm(prompt)
-    answer = call_llm_with_validation(prompt, call_llm, max_retries = MAX_TRIES)
+    answer = call_llm_with_validation(prompt, call_llm, max_retries = MAX_TRIES, logger=logger)
     metrics.PROMPT_MAKING_LATENCY_S.observe(duration_prompt_making)
     return answer
 
