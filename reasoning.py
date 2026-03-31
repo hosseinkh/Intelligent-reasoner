@@ -165,66 +165,87 @@ def _call_ollama(prompt: str, logger = None):
             })
             raise TimeoutError(f"LLM call exceeded {LLM_TIMEOUT_S}s")    
     
-def _call_vertex(prompt: str, logger = None) -> str:
+def _call_vertex(prompt: str, logger=None) -> str:
     logger = logger or logging.getLogger("intelligent-reasoner")
     start = time.perf_counter()
+    model = None
+
     try:
         vertexai.init(
-            project= GOOGLE_CLOUD_PROJECT,
-            location=VERTEX_LOCATION
+            project=GOOGLE_CLOUD_PROJECT,
+            location=VERTEX_LOCATION,
         )
 
         model = GenerativeModel(VERTEX_MODEL)
-        response = model.generate_content(prompt,
-                                          generation_config= {
-                                              "temprature" : TEMPRATURE,
-                                              "max_output_tokens":NUM_CHAR_OUT,
-                                          }
-                                          )
+
+        response = model.generate_content(
+            prompt,
+            generation_config={
+                "temperature": TEMPRATURE,
+                "max_output_tokens": NUM_CHAR_OUT,
+            },
+        )
+
         usage = response.usage_metadata
-        prompt_tokens = usage.prompt_tokens_details
+        prompt_tokens = usage.prompt_token_count
         completion_tokens = usage.candidates_token_count
         total_tokens = usage.total_token_count
-        out = response.text 
-        ms = int((time.perf_counter()-start)*1000)
-        logger.info("llm.call.success", extra = {
-            "llm_provider": "vertex",
-            "model": VERTEX_MODEL,
-            "latency_ms" : ms,
-            "response_char_count": len(out)
-        })
-        logger.info("llm.token_usage", extra = {
-            "provider":"vertex",
-            "prompt_token": prompt_tokens,
-            "completion_prompt": completion_tokens,
-            "total_tokens":total_tokens,
-        })
-        metrics.LLM_TOKEN_TOTAL.labels(
-                provider = LLM_PROVIDER,
-                type = "prompt"
-            ).inc(prompt_tokens)
-        metrics.LLM_TOKEN_TOTAL.labels(
-                provider = LLM_PROVIDER,
-                type = "completion"
-            ).inc(completion_tokens)
-        metrics.LLM_TOKEN_TOTAL.labels(
-                provider = LLM_PROVIDER,
-                type = "total"
-            ).inc(total_tokens)  
-        metrics.LLM_LATENCY_SECONDS.labels(
-            provider = LLM_PROVIDER
-        ).observe(ms/1000)          
-        return out
- 
-    except Exception:
-        ms = int((time.perf_counter()-start)*1000)
-        logger.exception("llm.call.error", extra = {
-            "llm_provider": "vertex",
-            "model": model,
-            "latency_ms":ms
-        })
-        raise
 
+        out = response.text
+        ms = int((time.perf_counter() - start) * 1000)
+
+        logger.info(
+            "llm.call.success",
+            extra={
+                "llm_provider": "vertex",
+                "model": VERTEX_MODEL,
+                "latency_ms": ms,
+                "response_char_count": len(out),
+            },
+        )
+
+        logger.info(
+            "llm.token_usage",
+            extra={
+                "provider": "vertex",
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": total_tokens,
+            },
+        )
+
+        metrics.LLM_TOKEN_TOTAL.labels(
+            provider="vertex",
+            type="prompt",
+        ).inc(prompt_tokens)
+
+        metrics.LLM_TOKEN_TOTAL.labels(
+            provider="vertex",
+            type="completion",
+        ).inc(completion_tokens)
+
+        metrics.LLM_TOKEN_TOTAL.labels(
+            provider="vertex",
+            type="total",
+        ).inc(total_tokens)
+
+        metrics.LLM_LATENCY_SECONDS.labels(
+            provider="vertex"
+        ).observe(ms / 1000)
+
+        return out
+
+    except Exception:
+        ms = int((time.perf_counter() - start) * 1000)
+        logger.exception(
+            "llm.call.error",
+            extra={
+                "llm_provider": "vertex",
+                "model": VERTEX_MODEL,
+                "latency_ms": ms,
+            },
+        )
+        raise
 
 def call_llm(prompt:str, logger = None)->str:
     logger = logger or logging.getLogger("intelligent-reasoner")
