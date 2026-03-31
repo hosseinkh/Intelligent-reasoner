@@ -320,6 +320,7 @@ def call_llm_with_validation(prompt: str, call_llm, max_retries: int = 2, logger
             raw = raw.strip()
             if raw.startwith("```"):
               raw = raw.split("```")[1]
+            logger.info("llm.raw_output", extra={"raw":raw}
             data = json.loads(raw)
             obj = LLMAnswer.model_validate(data)
             ms = int((time.perf_counter()-start)*1000)
