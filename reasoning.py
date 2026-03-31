@@ -77,7 +77,10 @@ Return ONLY a valid JSON object with this structure:
   "confidence": <a number between 0 and 1>
   "source" : "<the relevant file name indicated in the content>"
 }}
-Do NOT add any explanation, text, or formatting outside the JSON."""
+Do NOT add any explanation, text, or formatting outside the JSON.
+Do NOT include markdown.
+Do NOT include explanation.
+DO NOY include backticks."""
     prompt_length = len(prompt)
     logger.debug("make_prompt", extra = {
         "prompt_char_count": prompt_length
@@ -184,6 +187,7 @@ def _call_vertex(prompt: str, logger=None) -> str:
             generation_config={
                 "temperature": TEMPRATURE,
                 "max_output_tokens": NUM_CHAR_OUT,
+                "response_mime_type":"application/json"
             },
         )
 
@@ -313,6 +317,9 @@ def call_llm_with_validation(prompt: str, call_llm, max_retries: int = 2, logger
     last_err_type = None
     for attempt in range(max_retries + 1):
         try:
+            raw = raw.strip()
+            if raw.startwith("```"):
+              raw = raw.split("```")[1]
             data = json.loads(raw)
             obj = LLMAnswer.model_validate(data)
             ms = int((time.perf_counter()-start)*1000)
