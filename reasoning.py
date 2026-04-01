@@ -1,7 +1,7 @@
 
 import os
 from typing import Dict, List, Optional,Any, Tuple
-from rag_store import similar
+from rag_store_cloudsql import similar
 from contracts import Hit,LLMAnswer
 import ollama
 import vertexai
