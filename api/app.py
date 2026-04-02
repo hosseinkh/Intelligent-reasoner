@@ -5,6 +5,7 @@ from pydantic import BaseModel
 import uuid
 from agent.runner import agent_run
 from contracts import TraceCall
+from ingest_selector import run_ingest
 from api.config import (
     LOG_LEVEL,
     RAG_ENABLED,
@@ -131,7 +132,17 @@ def ask(req: AskRequest, request: Request) -> TraceCall:
             },
         )
 
-
+@app.post("/ingest")
+def ingest_documents():
+    try:
+        stored = run_ingest()
+        return {
+            "status": "ok",
+            "stored_chunks": stored
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
 @app.get("/ready")
 def ready():
     checks = {}

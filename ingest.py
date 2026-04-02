@@ -1,7 +1,7 @@
 
 from extractors import extract_text
 from text_ops import text_to_sentence, chunk_sentences ,make_chunks
-from rag_store_cloudsql import upsert_text
+from rag_store_selector import upsert_text
 
 def ingest_into_rag(folder:str , source: str):
 

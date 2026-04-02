@@ -1,7 +1,7 @@
 
 import os
 from typing import Dict, List, Optional,Any, Tuple
-from rag_store_cloudsql import similar
+
 from contracts import Hit,LLMAnswer
 import ollama
 import vertexai
@@ -17,7 +17,8 @@ from api.config import (MODEL,
                         RAG_TOP_K,
                         NUM_CHAR_OUT,
                         TEMPRATURE,
-                        CACHE_TTL_S)
+                        CACHE_TTL_S,
+                        RAG_BACKEND,)
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 import httpx
 from pydantic import ValidationError
@@ -27,6 +28,8 @@ import time
 import hashlib
 
 from api import metrics
+
+from rag_store_selector import similar
 
 
 def rag_search(question: str, k: int = RAG_TOP_K, where: Optional[Dict[str, Any]] = None, logger  = None):

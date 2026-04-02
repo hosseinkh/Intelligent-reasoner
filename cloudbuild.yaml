@@ -1,7 +1,7 @@
 steps:
-    - name: 'gcr.io/cloud-builders/docker'
-    args : ['build', '-t', 'europe-west1-docker.pkg.dev/medshortage-agent-lab/medshortage-test-image/medshortage-api:latest','.']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'europe-west1-docker.pkg.dev/medshortage-agent-lab/medshortage-test-image/medshortage-api:latest','.']
 images: 
-    - 'europe-west1-docker.pkg.dev/medshortage-agent-lab/medshortage-test-image/medshortage-api:latest'
+  - 'europe-west1-docker.pkg.dev/medshortage-agent-lab/medshortage-test-image/medshortage-api:latest'
           
     

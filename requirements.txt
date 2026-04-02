@@ -125,3 +125,4 @@ python-json-logger
 prometheus-client
 tiktoken
 psycopg2-binary
+google-cloud-storage
