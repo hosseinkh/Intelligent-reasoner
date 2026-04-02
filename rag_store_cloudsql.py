@@ -19,6 +19,11 @@ _conn = None
 _embed_function = embedding_functions.DefaultEmbeddingFunction()
 
 
+def _to_pgvector(vec) -> str:
+    clean = [float(x) for x in vec]
+    return "[" + ",".join(str(x) for x in clean) + "]"
+
+
 def init():
     global _conn
     if _conn is not None:
@@ -54,6 +59,7 @@ def embed(text: str):
 def upsert_text(text: str, metadata: Dict[str, Any], record_id: Optional[str] = None):
     init()
     text_embed = embed(text)[0]
+    text_embed_pg = _to_pgvector(text_embed)
     rec_id = record_id or str(uuid.uuid4())
 
     with _conn.cursor() as cur:
@@ -70,7 +76,7 @@ def upsert_text(text: str, metadata: Dict[str, Any], record_id: Optional[str] = 
             (
                 rec_id,
                 text,
-                str(list(text_embed)),
+                text_embed_pg,
                 json.dumps(metadata),
             ),
         )
@@ -81,6 +87,7 @@ def upsert_text(text: str, metadata: Dict[str, Any], record_id: Optional[str] = 
 def similar(text: str, k: int = RAG_TOP_K, where: Optional[Dict[str, Any]] = None):
     init()
     query_embed = embed(text)[0]
+    query_embed_pg = _to_pgvector(query_embed)
 
     sql = """
         SELECT id, content, metadata, 1 - (embedding <=> %s::vector) AS score
@@ -90,7 +97,7 @@ def similar(text: str, k: int = RAG_TOP_K, where: Optional[Dict[str, Any]] = Non
     """
 
     with _conn.cursor() as cur:
-        cur.execute(sql, (str(list(query_embed)), str(list(query_embed)), k))
+        cur.execute(sql, (query_embed_pg, query_embed_pg, k))
         rows = cur.fetchall()
 
     hits = []
