@@ -4,7 +4,6 @@ from typing import Dict, Optional, Any
 
 import psycopg2
 from chromadb.utils import embedding_functions
-
 from contracts import Hit
 from api.config import (
     RAG_TOP_K,

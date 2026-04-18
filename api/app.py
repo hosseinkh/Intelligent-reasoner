@@ -6,6 +6,8 @@ import uuid
 from agent.runner import agent_run
 from contracts import TraceCall
 from ingest_selector import run_ingest
+import base64
+import json
 from api.config import (
     LOG_LEVEL,
     RAG_ENABLED,
@@ -207,3 +209,34 @@ def version():
 def metrics():
     return Response(generate_latest(),
                     media_type = CONTENT_TYPE_LATEST)
+    
+
+
+@app.post("/ingest_event")
+async def ingest_event(payload: dict):
+    try:
+        message = payload.get("message", {})
+        data_b64 = message.get("data")
+
+        if not data_b64:
+            return {"status": "ignored", "reason": "no data"}
+
+        decoded = base64.b64decode(data_b64).decode("utf-8")
+        event = json.loads(decoded)
+
+        bucket = event.get("bucket")
+        name = event.get("name")
+
+        if not bucket or not name:
+            return {"status": "ignored", "reason": "missing bucket or name"}
+
+        stored = run_ingest()
+
+        return {
+            "status": "ok",
+            "bucket": bucket,
+            "file": name,
+            "stored_chunks": stored,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
