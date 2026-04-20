@@ -1,13 +1,14 @@
 from api.config import DOC_SOURCE, GCS_BUCKET_NAME, GCS_PREFIX
 
 
-def run_ingest():
+def run_ingest(bucket_name:str,file_name : str):
     if DOC_SOURCE == "gcs":
         from ingest_gcs import ingest_into_rag_gcs
         return ingest_into_rag_gcs(
-            bucket_name=GCS_BUCKET_NAME,
+            bucket_name=bucket_name,
             prefix=GCS_PREFIX,
-            source="GCSDocs"
+            source="GCSDocs",
+            file_name = file_name
         )
     else:
         from ingest import ingest_into_rag

@@ -2,10 +2,11 @@ from extractors_gcs import extract_text_gcs
 from text_ops import text_to_sentence, chunk_sentences, make_chunks
 from rag_store_selector import upsert_text
 from api.config import GCS_BUCKET_NAME, GCS_PREFIX
+from typing import Optional
 
 
-def ingest_into_rag_gcs(bucket_name: str, prefix: str, source: str):
-    documents_text = extract_text_gcs(bucket_name, prefix)
+def ingest_into_rag_gcs(bucket_name: str, prefix: str, source: str, file_name: Optional[str]=None):
+    documents_text = extract_text_gcs(bucket_name, prefix, file_name = file_name)
 
     stored = 0
 

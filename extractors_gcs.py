@@ -1,6 +1,6 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import List
+from typing import List,Optional
 
 from google.cloud import storage
 
@@ -8,9 +8,13 @@ from contracts import DocumentText
 from extractors import extract_from_pdf, extract_from_docx
 
 
-def extract_text_gcs(bucket_name: str, prefix: str = "") -> List[DocumentText]:
+def extract_text_gcs(bucket_name: str, prefix: str = "", file_name:Optional[str]= None) -> List[DocumentText]:
     client = storage.Client()
-    blobs = client.list_blobs(bucket_name, prefix=prefix)
+    if file_name is None:
+        blobs = client.list_blobs(bucket_name, prefix=prefix)
+    else: 
+        blob = client.bucket(bucket_name = bucket_name).blob(file_name)
+        blobs =[blob]
 
     docs = []
 
@@ -53,3 +57,5 @@ def extract_text_gcs(bucket_name: str, prefix: str = "") -> List[DocumentText]:
             )
 
     return docs
+
+

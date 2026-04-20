@@ -230,7 +230,7 @@ async def ingest_event(payload: dict):
         if not bucket or not name:
             return {"status": "ignored", "reason": "missing bucket or name"}
 
-        stored = run_ingest()
+        stored = run_ingest(bucket_name = bucket, file_name = name)
 
         return {
             "status": "ok",
