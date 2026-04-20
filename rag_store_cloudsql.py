@@ -91,12 +91,13 @@ def similar(text: str, k: int = RAG_TOP_K, where: Optional[Dict[str, Any]] = Non
     sql = """
         SELECT id, content, metadata, 1 - (embedding <=> %s::vector) AS score
         FROM documents
+        WHERE metadata @> %s::vector
         ORDER BY embedding <=> %s::vector
         LIMIT %s;
     """
 
     with _conn.cursor() as cur:
-        cur.execute(sql, (query_embed_pg, query_embed_pg, k))
+        cur.execute(sql, (query_embed_pg, query_embed_pg,json.dumps(where),k))
         rows = cur.fetchall()
 
     hits = []

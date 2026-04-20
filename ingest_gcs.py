@@ -5,7 +5,8 @@ from api.config import GCS_BUCKET_NAME, GCS_PREFIX
 from typing import Optional
 
 
-def ingest_into_rag_gcs(bucket_name: str, prefix: str, source: str, file_name: Optional[str]=None):
+def ingest_into_rag_gcs(bucket_name: Optional[str] = None, prefix: Optional[str]=None, 
+                        source: Optional[str]=None, file_name: Optional[str]=None):
     documents_text = extract_text_gcs(bucket_name, prefix, file_name = file_name)
 
     stored = 0
