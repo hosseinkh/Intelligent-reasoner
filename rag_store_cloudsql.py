@@ -91,7 +91,7 @@ def similar(text: str, k: int = RAG_TOP_K, where: Optional[Dict[str, Any]] = Non
     sql = """
         SELECT id, content, metadata, 1 - (embedding <=> %s::vector) AS score
         FROM documents
-        WHERE metadata @> %s::vector
+        WHERE metadata @> %s::jsonb
         ORDER BY embedding <=> %s::vector
         LIMIT %s;
     """
