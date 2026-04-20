@@ -1,7 +1,7 @@
 from api.config import DOC_SOURCE, GCS_BUCKET_NAME, GCS_PREFIX
 from typing import Optional
 
-def run_ingest(bucket_name:Optional[str] = None,file_name : Optional[str]=None):
+def run_ingest(bucket_name:Optional[str] = GCS_BUCKET_NAME,file_name : Optional[str]=None):
     if DOC_SOURCE == "gcs":
         from ingest_gcs import ingest_into_rag_gcs
         return ingest_into_rag_gcs(
