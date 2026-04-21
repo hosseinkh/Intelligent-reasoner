@@ -97,7 +97,7 @@ def similar(text: str, k: int = RAG_TOP_K, where: Optional[Dict[str, Any]] = Non
     """
 
     with _conn.cursor() as cur:
-        cur.execute(sql, (query_embed_pg, query_embed_pg,json.dumps(where),k))
+        cur.execute(sql, (query_embed_pg, query_embed_pg,query_embed_pg,json.dumps(where),k))
         rows = cur.fetchall()
 
     hits = []
