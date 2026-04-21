@@ -88,16 +88,26 @@ def similar(text: str, k: int = RAG_TOP_K, where: Optional[Dict[str, Any]] = Non
     query_embed = embed(text)[0]
     query_embed_pg = _to_pgvector(query_embed)
 
-    sql = """
-        SELECT id, content, metadata, 1 - (embedding <=> %s::vector) AS score
-        FROM documents
-        WHERE metadata @> %s::jsonb
-        ORDER BY embedding <=> %s::vector
-        LIMIT %s;
-    """
+    if where:
+        sql = """
+            SELECT id, content, metadata, 1 - (embedding <=> %s::vector) AS score
+            FROM documents
+            WHERE metadata @> %s::jsonb
+            ORDER BY embedding <=> %s::vector
+            LIMIT %s;
+        """
+        params = (query_embed_pg, json.dumps(where), query_embed_pg, k)
+    else:
+        sql = """
+            SELECT id, content, metadata, 1 - (embedding <=> %s::vector) AS score
+            FROM documents
+            ORDER BY embedding <=> %s::vector
+            LIMIT %s;
+        """
+        params = (query_embed_pg, query_embed_pg, k)
 
     with _conn.cursor() as cur:
-        cur.execute(sql, (query_embed_pg, query_embed_pg,query_embed_pg,json.dumps(where),k))
+        cur.execute(sql, params)
         rows = cur.fetchall()
 
     hits = []
